@@ -8,6 +8,8 @@ import Stats from "./components/Stats";
 import ProgressBar from "./components/ProgressBar";
 import EditModal from "./components/EditModal";
 
+import API from "./api/taskApi";
+
 import jsPDF from "jspdf";
 
 import { ToastContainer, toast } from "react-toastify";
@@ -15,18 +17,12 @@ import "react-toastify/dist/ReactToastify.css";
 
 function App() {
 
-  // ==========================
-  // States
-  // ==========================
-
   const [task, setTask] = useState("");
   const [priority, setPriority] = useState("Medium");
   const [category, setCategory] = useState("Work");
   const [dueDate, setDueDate] = useState("");
 
-  const [tasks, setTasks] = useState(() => {
-    return JSON.parse(localStorage.getItem("tasks")) || [];
-  });
+  const [tasks, setTasks] = useState([]);
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
@@ -36,125 +32,146 @@ function App() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
 
-  // ==========================
-  // Save Local Storage
-  // ==========================
-
   useEffect(() => {
-    localStorage.setItem("tasks", JSON.stringify(tasks));
-  }, [tasks]);
+    fetchTasks();
+  }, []);
 
-  // ==========================
-  // Add Task
-  // ==========================
+  const fetchTasks = async () => {
+    try {
 
-  const handleAddTask = () => {
+      const res = await API.get("/");
 
-    if (!task.trim()) {
-      toast.error("Please enter a task");
-      return;
+      setTasks(res.data);
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+  };
+
+  const handleAddTask = async () => {
+
+    if (!task.trim()) return;
+
+    try {
+
+      const res = await API.post("/", {
+        text: task,
+        priority,
+        category,
+        dueDate,
+      });
+
+      setTasks([res.data, ...tasks]);
+
+      toast.success("Task Added Successfully 🎉");
+
+      setTask("");
+      setPriority("Medium");
+      setCategory("Work");
+      setDueDate("");
+
+    } catch (error) {
+
+      console.log(error);
+
     }
 
-    const newTask = {
-      id: Date.now(),
-      text: task,
-      completed: false,
-      priority,
-      category,
-      dueDate,
-    };
-
-    setTasks([...tasks, newTask]);
-
-    toast.success("Task Added Successfully 🎉");
-
-    setTask("");
-    setPriority("Medium");
-    setCategory("Work");
-    setDueDate("");
   };
 
-  // ==========================
-  // Delete Task
-  // ==========================
+  const deleteTask = async (id) => {
 
-  const deleteTask = (id) => {
+    try {
 
-    setTasks(tasks.filter((item) => item.id !== id));
+      await API.delete(`/${id}`);
 
-    toast.error("Task Deleted 🗑️");
+      fetchTasks();
+
+      toast.error("Task Deleted 🗑️");
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
 
   };
 
-  // ==========================
-  // Complete Task
-  // ==========================
+  const completeTask = async (id) => {
 
-  const completeTask = (id) => {
+    try {
 
-    setTasks(
-      tasks.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              completed: !item.completed,
-            }
-          : item
-      )
-    );
+      const task = tasks.find((item) => item._id === id);
 
-    toast.success("Task Status Updated ✔️");
+      await API.put(`/${id}`, {
+        ...task,
+        completed: !task.completed,
+      });
+
+      fetchTasks();
+
+      toast.success("Task Completed ✔️");
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
 
   };
-    // ==========================
-  // Open Edit Modal
-  // ==========================
 
   const editTask = (id) => {
-    const taskToEdit = tasks.find((item) => item.id === id);
 
-    if (!taskToEdit) return;
-
-    setSelectedTask(taskToEdit);
-    setIsModalOpen(true);
-  };
-
-  // ==========================
-  // Close Edit Modal
-  // ==========================
-
-  const closeModal = () => {
-    setSelectedTask(null);
-    setIsModalOpen(false);
-  };
-
-  // ==========================
-  // Save Edited Task
-  // ==========================
-
-  const saveTask = (updatedTask) => {
-    setTasks(
-      tasks.map((item) =>
-        item.id === updatedTask.id
-          ? updatedTask
-          : item
-      )
+    const task = tasks.find(
+      (item) => item._id === id
     );
 
-    toast.info("Task Updated ✏️");
+    if (!task) return;
 
-    closeModal();
+    setSelectedTask(task);
+
+    setIsModalOpen(true);
+
   };
 
-  // ==========================
-  // Export PDF
-  // ==========================
+  const closeModal = () => {
+
+    setSelectedTask(null);
+
+    setIsModalOpen(false);
+
+  };
+
+  const saveTask = async (updatedTask) => {
+
+    try {
+
+      await API.put(
+        `/${updatedTask._id}`,
+        updatedTask
+      );
+
+      fetchTasks();
+
+      toast.info("Task Updated ✏️");
+
+      closeModal();
+
+    } catch (error) {
+
+      console.log(error);
+
+    }
+
+  };
 
   const exportPDF = () => {
 
     const doc = new jsPDF();
 
     doc.setFontSize(20);
+
     doc.text("Task Manager Report", 20, 20);
 
     let y = 40;
@@ -185,18 +202,24 @@ function App() {
 
       doc.text(
         `Status : ${
-          task.completed ? "Completed" : "Pending"
+          task.completed
+            ? "Completed"
+            : "Pending"
         }`,
         25,
         y
       );
 
-      y += 15;
+      y += 18;
 
       if (y > 270) {
+
         doc.addPage();
+
         y = 20;
+
       }
+
     });
 
     doc.save("Task_Report.pdf");
@@ -204,10 +227,6 @@ function App() {
     toast.success("PDF Downloaded 📄");
 
   };
-
-  // ==========================
-  // Drag & Drop
-  // ==========================
 
   const handleDragEnd = (result) => {
 
@@ -230,39 +249,34 @@ function App() {
 
   };
 
-  // ==========================
-  // Search + Filter
-  // ==========================
-
   const filteredTasks = tasks.filter((item) => {
 
     const matchSearch = item.text
       .toLowerCase()
       .includes(search.toLowerCase());
 
-    if (filter === "completed")
+    if (filter === "completed") {
       return item.completed && matchSearch;
+    }
 
-    if (filter === "pending")
+    if (filter === "pending") {
       return !item.completed && matchSearch;
+    }
 
     return matchSearch;
 
   });
-    return (
+  return (
     <div className={darkMode ? "container dark" : "container"}>
 
-      {/* Header */}
       <Header />
 
-      {/* Dark Mode Toggle */}
       <div className="theme-toggle">
         <button onClick={() => setDarkMode(!darkMode)}>
           {darkMode ? "☀️ Light Mode" : "🌙 Dark Mode"}
         </button>
       </div>
 
-      {/* Input */}
       <TaskInput
         task={task}
         setTask={setTask}
@@ -275,30 +289,27 @@ function App() {
         handleAddTask={handleAddTask}
       />
 
-      {/* Search */}
       <SearchBar
         search={search}
         setSearch={setSearch}
       />
 
-      {/* Filter */}
       <Filter
         filter={filter}
         setFilter={setFilter}
       />
 
-      {/* Stats */}
       <Stats tasks={tasks} />
 
-      {/* Progress Bar */}
       <ProgressBar tasks={tasks} />
 
-      {/* Export PDF Button */}
-      <button className="pdf-btn" onClick={exportPDF}>
+      <button
+        className="pdf-btn"
+        onClick={exportPDF}
+      >
         📄 Export PDF
       </button>
 
-      {/* Task List with Drag & Drop */}
       <TaskList
         filteredTasks={filteredTasks}
         completeTask={completeTask}
@@ -307,7 +318,6 @@ function App() {
         handleDragEnd={handleDragEnd}
       />
 
-      {/* Edit Modal */}
       <EditModal
         isOpen={isModalOpen}
         task={selectedTask}
@@ -315,10 +325,12 @@ function App() {
         onSave={saveTask}
       />
 
-      {/* Toast Notifications */}
       <ToastContainer
         position="top-right"
         autoClose={2000}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
         theme="colored"
       />
 

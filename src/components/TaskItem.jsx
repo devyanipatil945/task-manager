@@ -36,30 +36,25 @@ function TaskItem({ item, completeTask, deleteTask, editTask }) {
 
         {/* Edit */}
         <button
-          className="edit-btn"
-          onClick={() => editTask(item.id)}
-          title="Edit Task"
-        >
-          <FaEdit />
-        </button>
+  className="edit-btn"
+  onClick={() => editTask(item._id)}
+>
+  <FaEdit />
+</button>
 
-        {/* Complete */}
-        <button
-          className="complete-btn"
-          onClick={() => completeTask(item.id)}
-          title="Mark Complete"
-        >
-          <FaCheck />
-        </button>
+<button
+  className="complete-btn"
+  onClick={() => completeTask(item._id)}
+>
+  <FaCheck />
+</button>
 
-        {/* Delete */}
-        <button
-          className="delete-btn"
-          onClick={() => deleteTask(item.id)}
-          title="Delete Task"
-        >
-          <FaTrash />
-        </button>
+<button
+  className="delete-btn"
+  onClick={() => deleteTask(item._id)}
+>
+  <FaTrash />
+</button>
 
       </div>
 

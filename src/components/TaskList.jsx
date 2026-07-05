@@ -28,10 +28,10 @@ function TaskList({
 
             {/* TASK LIST */}
             {filteredTasks.map((item, index) => (
-              <Draggable
-                key={item.id}
-                draggableId={item.id.toString()}
-                index={index}
+             <Draggable
+              key={item._id}
+              draggableId={item._id.toString()}
+              index={index}
               >
                 {(provided) => (
                   <div
